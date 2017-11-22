@@ -121,11 +121,11 @@ class Train:
     return gini
 
   def rf_param_selection(self, nfolds):
-    sc_mod = RandomForestClassifier(criterion='gini', max_depth=None, min_samples_split=2, min_samples_leaf=1, n_jobs=-1, random_state=0)
+    sc_mod = RandomForestClassifier(criterion='gini', max_depth=None, min_samples_split=2, min_samples_leaf=1, n_jobs=-1, random_state=0, verbose=True)
     #nests = [400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000]
-    #mfeat = [6, 7, 8, 9, 10, 11]
-    nests = [300,400]
-    mfeat = [6,7]
+    mfeat = [6, 7, 8, 9, 10, 11]
+    nests = [1000]
+    #mfeat = [6,7]
     #mdeps = [8, 9, 10, 11, 12, 13, 14]
     param_grid = {'n_estimators': nests, 'max_features' : mfeat}
     grid_search = GridSearchCV(sc_mod, param_grid, scoring='roc_auc', cv=nfolds, verbose=2)
@@ -148,7 +148,7 @@ class Train:
   # XGBoost
   def TrainXGBoost(self):
     xgb = XGBClassifier(    
-                        n_estimators=350,
+                        n_estimators=1000,
                         max_depth=4,
                         objective="binary:logistic",
                         learning_rate=0.07, 
@@ -212,7 +212,7 @@ if __name__ == '__main__':
   
   train = Train(train_p)
   #print (train.PreprocessingScore())
-  scan_res = train.rf_param_selection(4)
+  scan_res = train.rf_param_selection(5)
   #j = json.dumps(scan_res, indent=2)
   #f = open('sample.json', 'w')
   #print >> f, j
