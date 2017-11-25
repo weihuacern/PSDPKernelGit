@@ -95,6 +95,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.datasets import make_classification
 from sklearn.model_selection import GridSearchCV
 from xgboost import XGBClassifier
+import xgboost
 # this class define various trainning methods, also cross validation to tune the hyper parameters
 class Train:
 
@@ -162,7 +163,18 @@ class Train:
                        )
     fit_xgb = xgb.fit(self.df.drop(['id', 'target'],axis=1), self.df.target)
     return fit_xgb
-  
+ 
+  # XGBoost CV
+  def xgb_cv(self):
+    xgbcvtrainDM = xgboost.DMatrix(self.df.drop(['id', 'target'],axis=1), label=self.df.target)
+    param = { 'n_estimators':1000, 'max_depth':4, 'eta':1, 'silent':1, 'objective':'binary:logistic' }
+    #print('running cross validation, XGB')
+    #xgboost.cv( param, xgbcvtrainDM, 2, nfold=5, metrics={'error'}, seed=0, callbacks=[xgboost.callback.print_evaluation(show_stdv=True)] )
+    print('running cross validation, XGB, disable standard deviation display')
+    res = xgboost.cv( param, xgbcvtrainDM, num_boost_round=5000, nfold=5, metrics={'error'}, seed=0, callbacks=[xgboost.callback.print_evaluation(show_stdv=False), xgboost.callback.early_stop(4)] )
+    print(res)
+
+ 
 # this class makes prediction, with various methods
 class Prediction:
 
@@ -212,7 +224,8 @@ if __name__ == '__main__':
   
   train = Train(train_p)
   #print (train.PreprocessingScore())
-  scan_res = train.rf_param_selection(5)
+  #scan_res = train.rf_param_selection(5)
+  train.xgb_cv()
   #j = json.dumps(scan_res, indent=2)
   #f = open('sample.json', 'w')
   #print >> f, j
