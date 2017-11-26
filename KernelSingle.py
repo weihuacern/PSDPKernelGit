@@ -155,9 +155,9 @@ class Train:
   def rf_param_selection(self, nfolds):
     sc_mod = RandomForestClassifier(criterion='gini', max_depth=None, min_samples_split=2, min_samples_leaf=1, n_jobs=-1, random_state=0, verbose=True)
     #nests = [400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000]
-    mfeat = [6, 7, 8, 9, 10, 11]
+    #mfeat = [6, 7, 8, 9, 10, 11]
     nests = [1000]
-    #mfeat = [6,7]
+    mfeat = [6, 7]
     #mdeps = [8, 9, 10, 11, 12, 13, 14]
     param_grid = {'n_estimators': nests, 'max_features' : mfeat}
     grid_search = GridSearchCV(sc_mod, param_grid, scoring='roc_auc', cv=nfolds, verbose=2)
@@ -296,37 +296,36 @@ if __name__ == '__main__':
   train_p = preprocessing.FinalFrameforTrainning()
   print ("done with trainning set preprocessing!")
   #train_p.to_csv('train_p.csv', index = False)
-  #preprocessing = PreProcessing('data/test.csv')
-  #test_p = preprocessing.FinalFrameforTrainning()
-  #print ("done with test set preprocessing!")
+  preprocessing = PreProcessing('../data/test.csv')
+  test_p = preprocessing.FinalFrameforTrainning()
+  print ("done with test set preprocessing!")
   #test_p.to_csv('test_p.csv', index = False)
   #train_p = pd.read_csv('train_p.csv')
   #test_p = pd.read_csv('test_p.csv')
   
   train = Train(train_p)
   #print (train.PreprocessingScore())
-  #scan_res = train.rf_param_selection(5)
-  train.xgb_cv()
+  #scan_res = train.rf_param_selection(3)
+  #train.xgb_cv()
   #train.TrainLightGBM()
   #j = json.dumps(scan_res, indent=2)
   #f = open('sample.json', 'w')
   #print >> f, j
   #f.close()
   #np.savetxt('PgridScan.txt', train.rf_param_selection(2))
-  '''
-  thisrf = train.TrainSKLearnRandomForest()
-  #thisxgb = train.TrainXGBoost()
+ 
+  #thisrf = train.TrainSKLearnRandomForest()
+  thisxgb = train.TrainXGBoost()
   print ("done with model trainning!")
   
-  prediction = Prediction(test_p, thisrf)
-  ypred = prediction.PredSKLearnRandomForest()
-  #prediction = Prediction(test_p, thisxgb)
-  #ypred = prediction.PredXGBoost()
+  #prediction = Prediction(test_p, thisrf)
+  #ypred = prediction.PredSKLearnRandomForest()
+  prediction = Prediction(test_p, thisxgb)
+  ypred = prediction.PredXGBoost()
   print ("done with prediction!")
   print (ypred) 
 
   outcsv = CreateSubmitCSV(test_p['id'], ypred)
   outcsv.Create()
   print ("done with csv output!")
-  '''
 
