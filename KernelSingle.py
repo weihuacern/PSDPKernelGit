@@ -192,7 +192,6 @@ class Train:
     lgb_params_1['bagging_freq'] = 1
     lgb_params_1['random_state'] = 15
 
-    '''
     lgb_params_2 = {}
     lgb_params_2['n_estimators'] = 1090
     lgb_params_2['learning_rate'] = 0.02   
@@ -210,15 +209,18 @@ class Train:
     lgb_params_3['feature_fraction'] = 0.95
     lgb_params_3['bagging_freq'] = 1
     lgb_params_3['random_state'] = 25
-    '''
-    lgb_model = LGBMClassifier(**lgb_params_1)
-    #lgb_model = LGBMClassifier(**lgb_params_2)
-    #lgb_model = LGBMClassifier(**lgb_params_3)
+    
+    lgb_model_1 = LGBMClassifier(**lgb_params_1)
+    #lgb_model_2 = LGBMClassifier(**lgb_params_2)
+    #lgb_model_3 = LGBMClassifier(**lgb_params_3)
+    
     #lgb_model.fit(X_train, y_train)
     #fit_lgb = lgb_model.fit(self.df.drop(['id', 'target'],axis=1), self.df.target)
     #return fit_lgb
 
-    scores = cross_val_score(lgb_model, self.df.drop(['id', 'target'],axis=1), self.df.target, scoring='roc_auc', cv=3, n_jobs=-1, verbose=2)
+    scores = cross_val_score(lgb_model_1, self.df.drop(['id', 'target'],axis=1), self.df.target, scoring='roc_auc', cv=3, n_jobs=-1, verbose=2)
+    #scores = cross_val_score(lgb_model_2, self.df.drop(['id', 'target'],axis=1), self.df.target, scoring='roc_auc', cv=3, n_jobs=-1, verbose=2)
+    #scores = cross_val_score(lgb_model_3, self.df.drop(['id', 'target'],axis=1), self.df.target, scoring='roc_auc', cv=3, n_jobs=-1, verbose=2)
     print(scores)
     return scores
 
