@@ -218,7 +218,7 @@ class Train:
     #fit_lgb = lgb_model.fit(self.df.drop(['id', 'target'],axis=1), self.df.target)
     #return fit_lgb
 
-    scores = cross_val_score(lgb_model, self.df.drop(['id', 'target'],axis=1), self.df.target, scoring='roc_auc', cv=5, n_jobs=-1, verbose=2)
+    scores = cross_val_score(lgb_model, self.df.drop(['id', 'target'],axis=1), self.df.target, scoring='roc_auc', cv=3, n_jobs=-1, verbose=2)
     print(scores)
     return scores
 
