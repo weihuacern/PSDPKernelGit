@@ -4,12 +4,19 @@ import json
 
 from sklearn.preprocessing import Imputer
 from sklearn.preprocessing import StandardScaler
+
 # This class is for the preprocessing, take csv path as input, and aim to return a pandas data frame for trainning
 class PreProcessing:
 
   # The constructor takes a pandas dataframe as input and save it to self.df
   def __init__(self, csvpath):
     self.df = pd.read_csv(csvpath)
+    if "train" in csvpath:
+      self.dftype = 1
+    elif "test" in csvpath:
+      self.dftype = 2
+    else:
+      self.dftype = -1
 
   # This method have deal with missing data before merge or drop
   def MissingData(self):
@@ -37,7 +44,8 @@ class PreProcessing:
     self.df["ps_car_07_cat"].fillna(-1, inplace=True)
     self.df["ps_car_09_cat"].fillna(-1, inplace=True)
     #self.df["ps_car_11"].fillna(self.df["ps_car_11"].value_counts().idxmax(), inplace=True)
-    self.df['ps_car_11'] = mfrq_imp.fit_transform(self.df[['ps_car_11']]).ravel()
+    self.df["ps_car_11"].fillna(-1, inplace=True)
+    #self.df['ps_car_11'] = mfrq_imp.fit_transform(self.df[['ps_car_11']]).ravel()
     #self.df["ps_car_12"].fillna(self.df["ps_car_12"].median(), inplace=True)
     self.df['ps_car_12'] = mean_imp.fit_transform(self.df[['ps_car_12']]).ravel()
     #self.df["ps_car_14"].fillna(self.df["ps_car_14"].median(), inplace=True)
@@ -49,21 +57,21 @@ class PreProcessing:
 
   # This method drop or merge variables in dataframe accroding to corr map
   def CorrMergeDrop(self):
-    self.df['ps_ind_06070809_bin'] = self.df.apply(
-      lambda x: 1 if x['ps_ind_06_bin'] == 1 
-                  else 
-                  (2 if x['ps_ind_07_bin'] == 1 
-                     else 
-                     ( 3 if x['ps_ind_08_bin'] == 1 
-                         else 
-                         (4 if x['ps_ind_09_bin'] == 1 else 5)
-                     )
-                  ), axis = 1)
-    self.df.drop(['ps_ind_06_bin', 'ps_ind_07_bin', 'ps_ind_08_bin', 'ps_ind_09_bin'], axis = 1, inplace = True)
+    #self.df['ps_ind_06070809_bin'] = self.df.apply(
+    #  lambda x: 1 if x['ps_ind_06_bin'] == 1 
+    #              else 
+    #              (2 if x['ps_ind_07_bin'] == 1 
+    #                 else 
+    #                 ( 3 if x['ps_ind_08_bin'] == 1 
+    #                     else 
+    #                     (4 if x['ps_ind_09_bin'] == 1 else 5)
+    #                 )
+    #              ), axis = 1)
+    #self.df.drop(['ps_ind_06_bin', 'ps_ind_07_bin', 'ps_ind_08_bin', 'ps_ind_09_bin'], axis = 1, inplace = True)
 
-    self.df['ps_ind_161718_bin'] = self.df.apply(lambda x: 1 if x['ps_ind_16_bin'] == 1 
-                                                             else (2 if x['ps_ind_17_bin'] == 1 else 3), axis = 1)
-    self.df.drop(['ps_ind_16_bin', 'ps_ind_17_bin', 'ps_ind_18_bin'], axis = 1, inplace = True)
+    #self.df['ps_ind_161718_bin'] = self.df.apply(lambda x: 1 if x['ps_ind_16_bin'] == 1 
+    #                                                         else (2 if x['ps_ind_17_bin'] == 1 else 3), axis = 1)
+    #self.df.drop(['ps_ind_16_bin', 'ps_ind_17_bin', 'ps_ind_18_bin'], axis = 1, inplace = True)
  
     # drop this variable from preprocessing study, top 3 missing data, and not important at all
     self.df.drop(['ps_car_03_cat'], axis = 1, inplace = True)
@@ -73,15 +81,34 @@ class PreProcessing:
     #self.df['ps_car_12'] = (self.df['ps_car_12']*self.df['ps_car_12']).round(4) * 10000
     return
 
+  # This method drop the original catagory labels and replaced with one hot labels
+  def OneHotReplacement(self):
+
+    onehot_cols = ['ps_ind_02_cat', 'ps_ind_04_cat', 'ps_ind_05_cat', 'ps_car_01_cat', 'ps_car_04_cat', 'ps_car_07_cat', 'ps_car_09_cat', 'ps_car_11']
+    self.df = pd.get_dummies(self.df, columns=onehot_cols, drop_first=True)
+    #onehot = pd.get_dummies(self.df['ps_ind_02_cat'])
+    #self.df.drop(['ps_ind_02_cat'], axis = 1, inplace = True)
+    #self.df = self.df.join(onehot)
+    return
+
+  # scale the features 
   def ScaleFeatures(self):
     scaler = StandardScaler(copy=False)
-    scaler.fit_transform(self.df.drop(['id','target'], axis=1))
+    if self.dftype == 1:
+      scaler.fit_transform(self.df.drop(['id','target'], axis=1))
+    elif self.dftype == 2:
+      scaler.fit_transform(self.df.drop(['id'], axis=1))
+    else:
+      print ("neither train nor test!")
+    return
 
   # this method pack all previous preprocessing all together and return the data frame
   def FinalFrameforTrainning(self):
     self.MissingData()
     self.CorrMergeDrop()
+    self.OneHotReplacement()
     self.ScaleFeatures()
+    #print (self.df)
     return self.df
 
 from sklearn.metrics import roc_auc_score
@@ -279,8 +306,8 @@ if __name__ == '__main__':
   train = Train(train_p)
   #print (train.PreprocessingScore())
   #scan_res = train.rf_param_selection(5)
-  #train.xgb_cv()
-  train.TrainLightGBM()
+  train.xgb_cv()
+  #train.TrainLightGBM()
   #j = json.dumps(scan_res, indent=2)
   #f = open('sample.json', 'w')
   #print >> f, j
