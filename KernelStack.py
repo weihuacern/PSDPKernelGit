@@ -107,6 +107,50 @@ class SklearnHelper(object):
   def feature_importances(self,x,y):
     print(self.clf.fit(x,y).feature_importances_)
 
+from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import cross_val_score
+#stack by logistic regression
+class Ensemble(object):
+  def __init__(self, n_splits, stacker, base_models):
+    self.n_splits = n_splits
+    self.stacker = stacker
+    self.base_models = base_models
+
+  def fit_predict(self, X, y, T):
+    X = np.array(X)
+    y = np.array(y)
+    T = np.array(T)
+
+    folds = list(StratifiedKFold(n_splits=self.n_splits, shuffle=True, random_state=2016).split(X, y))
+
+    S_train = np.zeros((X.shape[0], len(self.base_models)))
+    S_test = np.zeros((T.shape[0], len(self.base_models)))
+    
+    for i, clf in enumerate(self.base_models):
+      S_test_i = np.zeros((T.shape[0], self.n_splits))
+      for j, (train_idx, test_idx) in enumerate(folds):
+        X_train = X[train_idx]
+        y_train = y[train_idx]
+        X_holdout = X[test_idx]
+        #y_holdout = y[test_idx]
+
+        print ("Fit %s fold %d" % (str(clf).split('(')[0], j+1))
+        clf.fit(X_train, y_train)
+        #cross_score = cross_val_score(clf, X_train, y_train, cv=3, scoring='roc_auc')
+        #print("    cross_score: %.5f" % (cross_score.mean()))
+        y_pred = clf.predict_proba(X_holdout)[:,1]                
+
+        S_train[test_idx, i] = y_pred
+        S_test_i[:, j] = clf.predict_proba(T)[:,1]
+      S_test[:, i] = S_test_i.mean(axis=1)
+
+    results = cross_val_score(self.stacker, S_train, y, cv=3, scoring='roc_auc')
+    print("Stacker score: %.5f" % (results.mean()))
+
+    self.stacker.fit(S_train, y)
+    res = self.stacker.predict_proba(S_test)[:,1]
+    return res
+
 # Create submission file
 class CreateSubmitCSV:
 
@@ -129,9 +173,9 @@ if __name__ == '__main__':
   train_p = preprocessing.FinalFrameforTrainning()
   print ("done with trainning set preprocessing!")
   #train_p.to_csv('train_p.csv', index = False)
-  #preprocessing = PreProcessing('data/test.csv')
-  #test_p = preprocessing.FinalFrameforTrainning()
-  #print ("done with test set preprocessing!")
+  preprocessing = PreProcessing('data/test.csv')
+  test_p = preprocessing.FinalFrameforTrainning()
+  print ("done with test set preprocessing!")
   #test_p.to_csv('test_p.csv', index = False)
   #train_p = pd.read_csv('train_p.csv')
   #test_p = pd.read_csv('test_p.csv')
@@ -186,6 +230,9 @@ if __name__ == '__main__':
     'verbose': 2
   }
 
+  rf_model = SklearnHelper(clf=RandomForestClassifier, seed=SEED, params=rf_params)
+  xgb_model = SklearnHelper(clf=XGBClassifier, seed=SEED, params=xgb_params)
+
   lgb_params_1 = {}
   lgb_params_1['n_estimators'] = 650
   lgb_params_1['learning_rate'] = 0.02
@@ -197,33 +244,37 @@ if __name__ == '__main__':
   lgb_params_1['bagging_freq'] = 1
   lgb_params_1['random_state'] = 15
 
-  rf = SklearnHelper(clf=RandomForestClassifier, seed=SEED, params=rf_params)
-  xgb = SklearnHelper(clf=XGBClassifier, seed=SEED, params=xgb_params)
-  lgb_1 = SklearnHelper(clf=LGBMClassifier, seed=SEED, params=lgb_params_1)
-  #train = Train(train_p)
-  #print (train.PreprocessingScore())
-  #scan_res = train.rf_param_selection(5)
-  #train.xgb_cv()
-  #train.TrainLightGBM()
-  #j = json.dumps(scan_res, indent=2)
-  #f = open('sample.json', 'w')
-  #print >> f, j
-  #f.close()
-  #np.savetxt('PgridScan.txt', train.rf_param_selection(2))
-  '''
-  thisrf = train.TrainSKLearnRandomForest()
-  #thisxgb = train.TrainXGBoost()
-  print ("done with model trainning!")
-  
-  prediction = Prediction(test_p, thisrf)
-  ypred = prediction.PredSKLearnRandomForest()
-  #prediction = Prediction(test_p, thisxgb)
-  #ypred = prediction.PredXGBoost()
-  print ("done with prediction!")
-  print (ypred) 
+  lgb_params_2 = {}
+  lgb_params_2['n_estimators'] = 1090
+  lgb_params_2['learning_rate'] = 0.02
+  lgb_params_2['subsample'] = 0.7
+  lgb_params_2['subsample_freq'] = 2
+  lgb_params_2['num_leaves'] = 16
+  lgb_params_2['feature_fraction'] = 0.8
+  lgb_params_2['bagging_freq'] = 1
+  lgb_params_2['random_state'] = 20
 
+  lgb_params_3 = {}
+  lgb_params_3['n_estimators'] = 1100
+  lgb_params_3['max_depth'] = 4
+  lgb_params_3['learning_rate'] = 0.02
+  lgb_params_3['feature_fraction'] = 0.95
+  lgb_params_3['bagging_freq'] = 1
+  lgb_params_3['random_state'] = 25
+
+  lgb_model_1 = SklearnHelper(clf=LGBMClassifier, seed=SEED, params=lgb_params_1)
+  lgb_model_2 = SklearnHelper(clf=LGBMClassifier, seed=SEED, params=lgb_params_2)
+  lgb_model_3 = SklearnHelper(clf=LGBMClassifier, seed=SEED, params=lgb_params_3)
+
+  # stack
+  log_model = LogisticRegression()
+  stack = Ensemble( 
+                    n_splits=6, stacker = log_model,
+                    base_models = (lgb_model_1, lgb_model_2, lgb_model_3)
+                  )
+ 
+  ypred = stack.fit_predict(train_p.drop(['id', 'target'],axis=1), train_p.target, test_p.drop(['id'],axis=1))
+  print(ypred)
   outcsv = CreateSubmitCSV(test_p['id'], ypred)
   outcsv.Create()
   print ("done with csv output!")
-  '''
-
