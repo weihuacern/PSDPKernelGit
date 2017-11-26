@@ -133,6 +133,9 @@ class SklearnHelper(object):
   def feature_importances(self,x,y):
     print(self.clf.fit(x,y).feature_importances_)
 
+  def model(self):
+    return self.clf
+
 from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import cross_val_score
 #stack by logistic regression
@@ -294,10 +297,7 @@ if __name__ == '__main__':
 
   # stack
   log_model = LogisticRegression()
-  stack = Ensemble( 
-                    n_splits=6, stacker = log_model,
-                    base_models = (lgb_model_1, lgb_model_2, lgb_model_3)
-                  )
+  stack = Ensemble( n_splits=6, stacker = log_model, base_models = ( lgb_model_1.model(), lgb_model_2.model(), lgb_model_3.model() ) )
  
   ypred = stack.fit_predict(train_p.drop(['id', 'target'],axis=1), train_p.target, test_p.drop(['id'],axis=1))
   print(ypred)
