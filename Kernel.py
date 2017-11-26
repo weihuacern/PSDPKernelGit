@@ -94,8 +94,12 @@ from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import train_test_split
 from sklearn.datasets import make_classification
 from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import cross_val_score
+from sklearn import metrics
 from xgboost import XGBClassifier
 import xgboost
+from lightgbm import LGBMClassifier
+import lightgbm
 # this class define various trainning methods, also cross validation to tune the hyper parameters
 class Train:
 
@@ -167,14 +171,57 @@ class Train:
   # XGBoost CV
   def xgb_cv(self):
     xgbcvtrainDM = xgboost.DMatrix(self.df.drop(['id', 'target'],axis=1), label=self.df.target)
-    param = { 'n_estimators':1000, 'max_depth':4, 'eta':1, 'silent':1, 'objective':'binary:logistic' }
+    xgb_param = { 'n_estimators':1000, 'max_depth':4, 'eta':0.07, 'silent':1, 'objective':'binary:logistic' }
     #print('running cross validation, XGB')
-    #xgboost.cv( param, xgbcvtrainDM, 2, nfold=5, metrics={'error'}, seed=0, callbacks=[xgboost.callback.print_evaluation(show_stdv=True)] )
+    #xgboost.cv( xgb_param, xgbcvtrainDM, 2, nfold=5, metrics={'error'}, seed=0, callbacks=[xgboost.callback.print_evaluation(show_stdv=True)] )
     print('running cross validation, XGB, disable standard deviation display')
-    res = xgboost.cv( param, xgbcvtrainDM, num_boost_round=5000, nfold=5, metrics={'error'}, seed=0, callbacks=[xgboost.callback.print_evaluation(show_stdv=False), xgboost.callback.early_stop(4)] )
+    res = xgboost.cv( xgb_param, xgbcvtrainDM, num_boost_round=5000, nfold=5, metrics={'auc'}, seed=0, callbacks=[xgboost.callback.print_evaluation(show_stdv=False), xgboost.callback.early_stop(4)] )
     print(res)
 
- 
+  # light gbm
+  def TrainLightGBM(self):
+
+    lgb_params_1 = {}
+    lgb_params_1['n_estimators'] = 650
+    lgb_params_1['learning_rate'] = 0.02
+    lgb_params_1['max_bin'] = 10
+    lgb_params_1['subsample'] = 0.8
+    #lgb_params_1['subsample_freq'] = 10  
+    lgb_params_1['min_child_samples'] = 500
+    lgb_params_1['feature_fraction'] = 0.9
+    lgb_params_1['bagging_freq'] = 1
+    lgb_params_1['random_state'] = 15
+
+    '''
+    lgb_params_2 = {}
+    lgb_params_2['n_estimators'] = 1090
+    lgb_params_2['learning_rate'] = 0.02   
+    lgb_params_2['subsample'] = 0.7
+    lgb_params_2['subsample_freq'] = 2
+    lgb_params_2['num_leaves'] = 16
+    lgb_params_2['feature_fraction'] = 0.8
+    lgb_params_2['bagging_freq'] = 1
+    lgb_params_2['random_state'] = 20
+
+    lgb_params_3 = {}
+    lgb_params_3['n_estimators'] = 1100
+    lgb_params_3['max_depth'] = 4
+    lgb_params_3['learning_rate'] = 0.02
+    lgb_params_3['feature_fraction'] = 0.95
+    lgb_params_3['bagging_freq'] = 1
+    lgb_params_3['random_state'] = 25
+    '''
+    lgb_model = LGBMClassifier(**lgb_params_1)
+    #lgb_model = LGBMClassifier(**lgb_params_2)
+    #lgb_model = LGBMClassifier(**lgb_params_3)
+    #lgb_model.fit(X_train, y_train)
+    #fit_lgb = lgb_model.fit(self.df.drop(['id', 'target'],axis=1), self.df.target)
+    #return fit_lgb
+
+    scores = cross_val_score(lgb_model, self.df.drop(['id', 'target'],axis=1), self.df.target, scoring='roc_auc', cv=5, n_jobs=-1, verbose=2)
+    print(scores)
+    return scores
+
 # this class makes prediction, with various methods
 class Prediction:
 
@@ -191,6 +238,11 @@ class Prediction:
   # prediction with xgb
   def PredXGBoost(self):
     pred = self.model.predict_proba(self.df.drop(['id'],axis=1))[:,1]
+    return pred
+
+  # prediction with light gbm
+  def PredLightGBM(self):
+    pred = self.model.predict_proba(self.df.drop(['id'],axis=1))
     return pred
 
 # Create submission file
@@ -225,7 +277,8 @@ if __name__ == '__main__':
   train = Train(train_p)
   #print (train.PreprocessingScore())
   #scan_res = train.rf_param_selection(5)
-  train.xgb_cv()
+  #train.xgb_cv()
+  train.TrainLightGBM()
   #j = json.dumps(scan_res, indent=2)
   #f = open('sample.json', 'w')
   #print >> f, j
